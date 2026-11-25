@@ -4,7 +4,7 @@ import { createDefaultDocument } from '@/shared/defaults'
 import { useLayout } from '@/features/layout'
 import { useMechanisms } from '@/features/mechanisms'
 import { useScene, clampToScene } from '@/features/scene'
-import { useSimulation } from '@/features/simulation'
+import { buildScenario, useSimulation, type ScenarioKey } from '@/features/simulation'
 import { useReview } from '@/features/replay'
 
 const storageKey = 'chainline-jdk032-project-v1'
@@ -67,11 +67,22 @@ export function useWorkspace() {
     layout.move(id, safe.x, safe.y)
   }
   function focusEvent(id: string) {
+    const contact = simulation.run.value?.contacts.find(item => item.id === id)
     const event = simulation.run.value?.events.find(item => item.id === id)
-    if (!event) return
-    focusPieceId.value = event.pieceId
-    layout.select(event.pieceId)
+    const pieceId = contact?.pieceId ?? event?.pieceId
+    if (!pieceId) return
+    focusPieceId.value = pieceId
+    layout.select(pieceId)
     review.focusEvent(id)
+  }
+  /** 载入内置验证场景（坡道回弹 / 区间重叠分岔），与无头验证共用同一份场景定义 */
+  function loadScenario(key: ScenarioKey) {
+    const scenario = buildScenario(key)
+    document.value = { ...scenario, updatedAt: Date.now() }
+    simulation.clear()
+    focusPieceId.value = null
+    layout.select(null)
+    saveState.value = 'unsaved'
   }
   function onKeydown(event: KeyboardEvent) {
     const target = event.target
@@ -93,5 +104,5 @@ export function useWorkspace() {
     window.clearTimeout(saveTimer)
   })
 
-  return { document, saveState, focusPieceId, layout, mechanisms, scene, simulation, review, place, move, focusEvent }
+  return { document, saveState, focusPieceId, layout, mechanisms, scene, simulation, review, place, move, focusEvent, loadScenario }
 }

@@ -1,6 +1,6 @@
 import { computed, ref, shallowRef, type Ref } from 'vue'
 import type { DominoDocument, SimulationRun } from '@/shared/document'
-import { propagate } from '../lib/propagate'
+import { runEngine } from '../lib/engine'
 
 export function useSimulation(document: Ref<DominoDocument>) {
   const run = shallowRef<SimulationRun | null>(null)
@@ -15,20 +15,9 @@ export function useSimulation(document: Ref<DominoDocument>) {
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
     try {
       const snapshot = structuredClone(document.value)
-      const result = propagate(snapshot)
-      run.value = {
-        id: crypto.randomUUID(),
-        documentId: snapshot.id,
-        revision: snapshot.revision,
-        startedAt: Date.now(),
-        startPieceId: snapshot.startPieceId,
-        status: result.status,
-        events: result.events,
-        interruptedPieceId: result.interruptedPieceId,
-        interruptionReason: result.interruptionReason,
-        duration: result.duration,
-      }
-      if (result.status === 'empty') issue.value = '场景里没有可运行的触发点。'
+      // 慢放姿态、事件表与中断点全部来自这一次 runEngine 调用
+      run.value = runEngine(snapshot)
+      if (run.value.status === 'empty') issue.value = '场景里没有可运行的触发点。'
     } catch {
       issue.value = '场景计算未能完成，请检查元件连接。'
     } finally {
